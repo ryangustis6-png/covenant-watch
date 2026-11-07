@@ -1,0 +1,25 @@
+TEAM BRIEF — Redhawk Builds 2026
+Builder: Ryan Gustis (GitHub ryangustis6-png)
+Challenge: #5 Borrower covenant monitoring (Investment Banking and Commercial Banking track)
+Product: Covenant Watch
+User: commercial lending credit analyst / portfolio manager covering a book of borrowers
+Task: each quarter, test borrower reports against loan covenants, flag exceptions, write a watchlist memo for the credit officer
+Decision supported: which borrowers need escalation (waiver/amendment/reserve conversation) and how much cushion is left
+
+MVP scope (all three challenge options, kept small):
+1. Check leverage and debt-service covenants (exact integer math)
+2. Track quarterly covenant headroom (dollar cushion + migration grid, early-warning lead time)
+3. Link each calculation to the agreement definition (exact excerpt, offsets, sha256, CSV source row)
+Extension: AI-drafted credit memo with every figure verified against computed facts (template fallback without a key)
+Stretch: ElevenLabs voice briefing of the watchlist (Best Use of ElevenLabs entry)
+
+Key findings in the data (as of 2026-09-30):
+- 9 of 9 borrowers breach minimum DSCR (1.15x vs 1.20x) in 2026-Q3; 7 of 9 breach maximum leverage
+- $10.35M total gross debt, all in breach at Q3
+- Every DSCR was on Watch (cushion < 10%) in 2026-Q1: two quarters of early warning before the book-wide breach
+- Q4 2026 rows post-date the as-of date; treated as projected
+
+Accounts/connectors: Vercel connected (team "FirstMate", Hobby). GitHub account ryangustis6-png (needs Claude + Vercel linking).
+Supabase and ElevenLabs connectors started but not finished; Supabase deliberately skipped for the demo.
+
+Deadlines: Devpost submission Sun Nov 8, 10:00am ET. Table judging 10:30. Finalist pitch 1pm (4 min + 3 min Q&A).

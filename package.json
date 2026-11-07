@@ -1,0 +1,26 @@
+{
+  "name": "covenant-watch",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "node --env-file-if-exists=.env server.js",
+    "start": "node --env-file-if-exists=.env server.js",
+    "test": "node --test tests/*.test.js",
+    "demo": "node scripts/analyze-sample.js",
+    "check": "node --env-file-if-exists=.env scripts/check.js",
+    "db:test": "node tests/database.js",
+    "import:data": "node --env-file-if-exists=.env scripts/import-data.js",
+    "build": "node scripts/build-watchlist.js",
+    "test:covenants": "node --test tests/covenants.test.js"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "2.117.2"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "0.5.8"
+  }
+}

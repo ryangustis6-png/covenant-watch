@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Covenant Watch — borrower covenant monitoring</title>
+<style>
+:root{
+  color-scheme:light;
+  --page:#f9f9f7;--surface:#fcfcfb;--ink:#0b0b0b;--ink-2:#52514e;--muted:#898781;
+  --grid:#e1e0d9;--axis:#c3c2b7;--ring:rgba(11,11,11,.10);
+  --series:#2a78d6;--good:#0ca30c;--warning:#fab219;--serious:#ec835a;--critical:#d03b3b;
+  --good-text:#006300;--hover:rgba(42,120,214,.07);--sel:rgba(42,120,214,.12);
+}
+@media (prefers-color-scheme:dark){:root{
+  color-scheme:dark;--page:#0d0d0d;--surface:#1a1a19;--ink:#f0efec;--ink-2:#c3c2b7;--muted:#898781;
+  --grid:#2c2c2a;--axis:#383835;--ring:rgba(255,255,255,.10);--series:#3987e5;--good-text:#0ca30c;
+  --hover:rgba(57,135,229,.10);--sel:rgba(57,135,229,.18);}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--page);color:var(--ink);font:14px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif}
+header{display:flex;align-items:baseline;gap:16px;flex-wrap:wrap;padding:20px 28px 8px}
+header h1{font-size:20px;margin:0;font-weight:650;letter-spacing:-.01em}
+header .sub{color:var(--ink-2)}
+header .pill{margin-left:auto;font-size:12px;color:var(--ink-2);border:1px solid var(--ring);border-radius:999px;padding:3px 10px}
+main{padding:8px 28px 40px;display:grid;gap:16px;max-width:1280px}
+.card{background:var(--surface);border:1px solid var(--ring);border-radius:12px;padding:18px 20px}
+.card h2{font-size:15px;margin:0 0 2px;font-weight:620}
+.card .hint{color:var(--ink-2);margin:0 0 14px;font-size:13px}
+.tiles{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px}
+.tile .label{color:var(--ink-2);font-size:13px}
+.tile .value{font-size:28px;font-weight:620;margin-top:4px;letter-spacing:-.01em}
+.tile .note{color:var(--muted);font-size:12px;margin-top:2px}
+.layout{display:grid;grid-template-columns:minmax(0,560px) minmax(0,1fr);gap:16px;align-items:start}
+/* migration grid */
+table.grid{border-collapse:separate;border-spacing:2px;width:100%;font-variant-numeric:tabular-nums}
+table.grid th{font-weight:500;color:var(--muted);font-size:12px;text-align:center;padding:2px 0}
+table.grid th.grp{color:var(--ink-2);font-size:12px;font-weight:600;border-bottom:1px solid var(--grid)}
+table.grid td.b{white-space:nowrap;padding:0 10px 0 6px;font-weight:560;cursor:pointer;border-radius:6px}
+table.grid tr.row{cursor:pointer}
+table.grid tr.row:hover td.b{background:var(--hover)}
+table.grid tr.row.sel td.b{background:var(--sel)}
+td.cell{height:30px;min-width:52px;text-align:center;font-size:12px;font-weight:600;border-radius:4px;outline-offset:1px}
+td.cell.proj{background-image:repeating-linear-gradient(135deg,rgba(255,255,255,.28) 0 2px,transparent 2px 6px)}
+td.cell:hover,td.cell:focus{outline:2px solid var(--ink)}
+.st-pass{background:var(--good);color:#fff}.st-watch{background:var(--warning);color:#0b0b0b}
+.st-breach{background:var(--critical);color:#fff}.st-review{background:var(--serious);color:#fff}
+.legend{display:flex;gap:14px;flex-wrap:wrap;margin-top:12px;color:var(--ink-2);font-size:12px}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.sw{width:12px;height:12px;border-radius:3px;display:inline-block}
+.badge{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:600;padding:2px 8px;border-radius:999px}
+/* detail */
+.detail-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.detail-head h2{font-size:18px}
+.charts{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:12px 0 4px}
+.chart h3{font-size:13px;font-weight:600;margin:0}
+.chart .cap{color:var(--muted);font-size:12px;margin:0 0 4px}
+.chart svg{width:100%;height:auto;display:block;overflow:visible}
+table.calc{width:100%;border-collapse:collapse;font-size:12.5px;font-variant-numeric:tabular-nums;margin-top:8px}
+table.calc th{color:var(--muted);font-weight:500;text-align:right;padding:6px 8px;border-bottom:1px solid var(--grid);white-space:nowrap}
+table.calc td{text-align:right;padding:6px 8px;border-bottom:1px solid var(--grid);white-space:nowrap}
+table.calc th:first-child,table.calc td:first-child{text-align:left}
+.scroll{overflow-x:auto;margin:0 -4px}
+.neg{color:var(--critical);font-weight:600}
+.evidence{border-left:3px solid var(--series);padding:10px 14px;background:var(--hover);border-radius:0 8px 8px 0;margin:8px 0}
+.evidence q{font-style:normal}
+.meta{color:var(--muted);font-size:12px;word-break:break-all}
+.ok{color:var(--good-text);font-weight:600}
+button{white-space:nowrap;font:inherit;font-weight:600;border:0;border-radius:8px;padding:9px 14px;background:var(--series);color:#fff;cursor:pointer}
+button[disabled]{opacity:.6;cursor:progress}
+.memo{white-space:pre-wrap;line-height:1.55;margin-top:12px;padding:14px 16px;border:1px solid var(--ring);border-radius:10px}
+mark.unv{background:var(--warning);color:#0b0b0b;border-radius:3px;padding:0 2px}
+.foot li{color:var(--ink-2);margin:3px 0}
+#tip{position:fixed;pointer-events:none;background:var(--surface);color:var(--ink);border:1px solid var(--ring);
+  box-shadow:0 4px 18px rgba(0,0,0,.14);border-radius:8px;padding:8px 10px;font-size:12px;display:none;z-index:9;max-width:280px}
+#tip .v{font-weight:650;font-size:13px}#tip .k{color:var(--ink-2)}
+@media (max-width:980px){.layout,.charts{grid-template-columns:1fr}.tiles{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+<body>
+<header>
+  <h1>Covenant Watch</h1>
+  <span class="sub">Borrower covenant monitoring for commercial lending</span>
+  <span class="pill" id="asof">Loading…</span>
+</header>
+<main>
+  <section class="tiles" id="tiles" aria-label="Portfolio summary"></section>
+  <section class="layout">
+    <div class="card">
+      <h2>Covenant migration by borrower</h2>
+      <p class="hint">Ranked by severity at the latest reported quarter. Click a borrower to open the calculation and source.</p>
+      <table class="grid" id="grid"></table>
+      <div class="legend">
+        <span><i class="sw st-pass"></i>✓ Pass</span>
+        <span><i class="sw st-watch"></i>! Watch (cushion &lt;&nbsp;<b id="thr"></b>)</span>
+        <span><i class="sw st-breach"></i>✕ Breach</span>
+        <span><i class="sw st-review"></i>? Needs review</span>
+        <span><i class="sw st-breach proj" style="background-image:repeating-linear-gradient(135deg,rgba(255,255,255,.4) 0 2px,transparent 2px 6px)"></i>Hatched = projected (after as-of date)</span>
+      </div>
+    </div>
+    <div class="card" id="detail"></div>
+  </section>
+  <section class="card foot">
+    <h2>Method and assumptions</h2>
+    <ul id="assumptions"></ul>
+  </section>
+</main>
+<div id="tip" role="tooltip"></div>
+<script>
+const $ = (t, a = {}, ...kids) => { const e = document.createElement(t); for (const [k, v] of Object.entries(a)) {
+  if (k === 'class') e.className = v; else if (k.startsWith('on')) e[k] = v; else e.setAttribute(k, v); }
+  for (const k of kids.flat()) if (k != null) e.append(k.nodeType ? k : document.createTextNode(String(k))); return e; };
+const NS = 'http://www.w3.org/2000/svg';
+const s = (t, a = {}, text) => { const e = document.createElementNS(NS, t); for (const [k, v] of Object.entries(a)) e.setAttribute(k, v); if (text != null) e.textContent = text; return e; };
+const usd = v => { if (v == null) return 'n/a'; const n = Number(v); return (n < 0 ? '-$' : '$') + Math.abs(n).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}); };
+const usdC = v => { const n = Math.abs(Number(v)); return (Number(v) < 0 ? '-$' : '$') + (n >= 1e6 ? (n / 1e6).toFixed(2) + 'M' : n >= 1e3 ? (n / 1e3).toFixed(1) + 'K' : n.toFixed(0)); };
+const x = v => v == null ? 'n/a' : (Math.trunc(v * 100) / 100).toFixed(2) + 'x';
+const pct = b => b == null ? 'n/a' : (b / 100).toFixed(2) + '%';
+const LABEL = {pass: 'Pass', watch: 'Watch', breach: 'Breach', review: 'Needs review'};
+const ICON = {pass: '✓', watch: '!', breach: '✕', review: '?'};
+const badge = st => $('span', {class: `badge st-${st}`}, ICON[st] + ' ' + LABEL[st]);
+const tip = document.getElementById('tip');
+function showTip(ev, rows) { tip.replaceChildren(...rows.map(([v, k]) => $('div', {}, $('span', {class: 'v'}, v), ' ', $('span', {class: 'k'}, k))));
+  tip.style.display = 'block'; const r = ev.target.getBoundingClientRect?.() || {left: ev.clientX, top: ev.clientY, width: 0};
+  const px = ev.clientX ?? r.left + r.width / 2, py = ev.clientY ?? r.top;
+  tip.style.left = Math.min(px + 14, innerWidth - tip.offsetWidth - 8) + 'px'; tip.style.top = (py + 14) + 'px'; }
+const hideTip = () => tip.style.display = 'none';
+
+let W, selected;
+fetch('watchlist.json').then(r => r.json()).then(data => { W = data; render(); });
+
+function quarterTag(q) { return q.period.replace(/^\d{4}-/, '') + (q.projected ? '*' : ''); }
+
+function render() {
+  const S = W.summary;
+  document.getElementById('asof').textContent = `As of ${W.as_of} · ${S.rows - S.projected_rows} reported + ${S.projected_rows} projected quarters · USD`;
+  document.getElementById('thr').textContent = pct(W.watch_threshold_bps);
+  // lead time: earliest watch-or-worse quarter vs earliest breach, per covenant, across book
+  const all = W.borrowers.flatMap(b => b.quarters);
+  const periods = [...new Set(all.map(q => q.period))].sort();
+  const cur = W.borrowers[0].current_period;
+  const levBreach = W.borrowers.filter(b => b.current?.leverage?.status === 'breach').length;
+  const dscrBreach = W.borrowers.filter(b => b.current?.dscr?.status === 'breach').length;
+  const firstWatch = periods.find(p => all.some(q => q.period === p && q.status !== 'pass'));
+  const firstBookBreach = periods.find(p => all.filter(q => q.period === p).every(q => q.status === 'breach'));
+  const qIdx = p => periods.indexOf(p);
+  const lead = firstWatch && firstBookBreach ? qIdx(firstBookBreach) - qIdx(firstWatch) : null;
+  const tiles = [
+    ['Exposure in breach', usdC(S.exposure_in_breach_usd), `${S.breach} of ${S.borrowers} borrowers · ${usdC(S.exposure_usd)} total debt`],
+    ['DSCR breaches', `${dscrBreach} of ${S.borrowers}`, `${cur.replace('-', ' ')} · minimum ${W.borrowers[0].current.dscr.limit}x`],
+    ['Leverage breaches', `${levBreach} of ${S.borrowers}`, `${cur.replace('-', ' ')} · maximum ${W.borrowers[0].current.leverage.limit}x`],
+    ['Early-warning lead time', lead != null ? `${lead} quarter${lead === 1 ? '' : 's'}` : 'n/a',
+      firstWatch ? `First watch flag ${firstWatch.replace('-', ' ')} → book-wide breach ${firstBookBreach?.replace('-', ' ') || 'none'}` : ''],
+  ];
+  document.getElementById('tiles').replaceChildren(...tiles.map(([l, v, n]) =>
+    $('div', {class: 'card tile'}, $('div', {class: 'label'}, l), $('div', {class: 'value'}, v), $('div', {class: 'note'}, n))));
+  // migration grid
+  const g = document.getElementById('grid');
+  const qs = W.borrowers[0].quarters;
+  g.replaceChildren(
+    $('thead', {}, $('tr', {}, $('th', {}), $('th', {class: 'grp', colspan: qs.length}, 'Leverage (max)'), $('th', {class: 'grp', colspan: qs.length}, 'DSCR (min)')),
+      $('tr', {}, $('th', {}, ''), ...[0, 1].flatMap(() => qs.map(q => $('th', {}, quarterTag(q)))))),
+    $('tbody', {}, W.borrowers.map(b => {
+      const tr = $('tr', {class: 'row', 'data-id': b.borrower_id}, $('td', {class: 'b'}, b.borrower_id));
+      for (const cov of ['leverage', 'dscr']) for (const q of b.quarters) {
+        const c = q[cov], st = c?.status || 'review';
+        const td = $('td', {class: `cell st-${st}${q.projected ? ' proj' : ''}`, tabindex: 0,
+          'aria-label': `${b.borrower_id} ${q.period} ${cov} ${x(c?.value)} ${LABEL[st]}`}, x(c?.value));
+        const rows = () => [[x(c?.value), `${cov === 'dscr' ? 'DSCR' : 'Leverage'} · ${b.borrower_id} ${q.period}${q.projected ? ' (projected)' : ''}`],
+          [ICON[st] + ' ' + LABEL[st], `${cov === 'dscr' ? 'min' : 'max'} ${c?.limit}x`],
+          cov === 'leverage' ? [usd(c?.ebitda_cushion_usd), `EBITDA cushion (${pct(c?.ebitda_cushion_bps)})`]
+                             : [usd(c?.cashflow_cushion_usd), `cash-flow cushion (${pct(c?.cashflow_cushion_bps)})`]];
+        td.onpointermove = ev => showTip(ev, rows()); td.onpointerleave = hideTip;
+        td.onfocus = ev => { const r = td.getBoundingClientRect(); showTip({clientX: r.left, clientY: r.bottom, target: td}, rows()); }; td.onblur = hideTip;
+        tr.append(td);
+      }
+      tr.onclick = () => select(b.borrower_id);
+      tr.onkeydown = ev => { if (ev.key === 'Enter') select(b.borrower_id); };
+      return tr;
+    })));
+  document.getElementById('assumptions').replaceChildren(...W.assumptions.map(a => $('li', {}, a)),
+    $('li', {}, `Source: ${W.evidence.leverage.source} (sha256 ${W.evidence.leverage.sha256.slice(0, 12)}…) and data/loan_covenants.csv. All borrowers and figures are synthetic.`));
+  select(W.borrowers[0].borrower_id);
+}
+
+function lineChart({title, cap, quarters, key, limit, test}) {
+  const w = 340, h = 190, m = {l: 40, r: 58, t: 14, b: 26};
+  const vals = quarters.map(q => q[key]?.value).filter(v => v != null);
+  let lo = Math.min(limit, ...vals), hi = Math.max(limit, ...vals); const pad = (hi - lo) * .25 || .2; lo -= pad; hi += pad;
+  const X = i => m.l + (w - m.l - m.r) * (quarters.length === 1 ? .5 : i / (quarters.length - 1));
+  const Y = v => m.t + (h - m.t - m.b) * (1 - (v - lo) / (hi - lo));
+  const svg = s('svg', {viewBox: `0 0 ${w} ${h}`, role: 'img', 'aria-label': `${title} by quarter against ${test} ${limit}x`});
+  const ticks = 4; for (let i = 0; i <= ticks; i++) { const v = lo + (hi - lo) * i / ticks;
+    svg.append(s('line', {x1: m.l, x2: w - m.r, y1: Y(v), y2: Y(v), stroke: 'var(--grid)', 'stroke-width': 1}),
+      s('text', {x: m.l - 6, y: Y(v) + 4, 'text-anchor': 'end', 'font-size': 10, fill: 'var(--muted)'}, v.toFixed(2) + 'x')); }
+  quarters.forEach((q, i) => svg.append(s('text', {x: X(i), y: h - 8, 'text-anchor': 'middle', 'font-size': 10, fill: 'var(--muted)'}, quarterTag(q))));
+  // covenant limit
+  svg.append(s('line', {x1: m.l, x2: w - m.r, y1: Y(limit), y2: Y(limit), stroke: 'var(--critical)', 'stroke-width': 1.5}),
+    s('text', {x: w - m.r + 6, y: Y(limit) + 4, 'font-size': 10, fill: 'var(--ink-2)'}, `${test} ${limit.toFixed(2)}x`));
+  // series: solid through reported, dashed into projected
+  const pts = quarters.map((q, i) => q[key]?.value == null ? null : [X(i), Y(q[key].value), q]);
+  const solid = pts.filter(p => p && !p[2].projected), lastSolid = solid.at(-1);
+  const proj = pts.filter(p => p && p[2].projected);
+  const path = arr => arr.map((p, i) => (i ? 'L' : 'M') + p[0] + ' ' + p[1]).join(' ');
+  if (solid.length > 1) svg.append(s('path', {d: path(solid), fill: 'none', stroke: 'var(--series)', 'stroke-width': 2, 'stroke-linejoin': 'round', 'stroke-linecap': 'round'}));
+  if (proj.length && lastSolid) svg.append(s('path', {d: path([lastSolid, ...proj]), fill: 'none', stroke: 'var(--series)', 'stroke-width': 2, 'stroke-dasharray': '4 4', 'stroke-linecap': 'round'}));
+  for (const p of pts) if (p) svg.append(s('circle', {cx: p[0], cy: p[1], r: 4.5, fill: p[2].projected ? 'var(--surface)' : 'var(--series)', stroke: p[2].projected ? 'var(--series)' : 'var(--surface)', 'stroke-width': 2}));
+  const end = lastSolid; if (end) svg.append(s('text', {x: end[0] + 8, y: end[1] - 8, 'font-size': 11, 'font-weight': 600, fill: 'var(--ink)'}, x(end[2][key].value)));
+  // crosshair + tooltip
+  const cross = s('line', {y1: m.t, y2: h - m.b, stroke: 'var(--axis)', 'stroke-width': 1, visibility: 'hidden'});
+  const hit = s('rect', {x: m.l - 10, y: 0, width: w - m.l - m.r + 20, height: h, fill: 'transparent'});
+  svg.append(cross, hit);
+  hit.onpointermove = ev => { const r = svg.getBoundingClientRect(), px = (ev.clientX - r.left) * w / r.width;
+    let i = 0, d = 1e9; quarters.forEach((_, j) => { const dd = Math.abs(X(j) - px); if (dd < d) { d = dd; i = j; } });
+    const q = quarters[i], c = q[key]; cross.setAttribute('x1', X(i)); cross.setAttribute('x2', X(i)); cross.setAttribute('visibility', 'visible');
+    showTip(ev, [[x(c?.value), `${q.period}${q.projected ? ' (projected)' : ''}`], [ICON[c?.status] + ' ' + LABEL[c?.status], `${test} ${limit.toFixed(2)}x`],
+      [key === 'leverage' ? usd(c?.ebitda_cushion_usd) : usd(c?.cashflow_cushion_usd), key === 'leverage' ? 'EBITDA cushion' : 'cash-flow cushion']]); };
+  hit.onpointerleave = () => { cross.setAttribute('visibility', 'hidden'); hideTip(); };
+  return $('div', {class: 'chart'}, $('h3', {}, title), $('p', {class: 'cap'}, cap), svg);
+}
+
+function select(id) {
+  selected = id; const b = W.borrowers.find(r => r.borrower_id === id), c = b.current;
+  document.querySelectorAll('tr.row').forEach(tr => tr.classList.toggle('sel', tr.dataset.id === id));
+  const neg = v => $('span', {class: Number(v) < 0 ? 'neg' : ''}, usd(v));
+  const calcRows = b.quarters.map(q => $('tr', {},
+    $('td', {}, q.period + (q.projected ? ' (proj.)' : '')), $('td', {}, usd(q.debt_usd)), $('td', {}, usd(q.ttm_ebitda_usd)),
+    $('td', {}, x(q.leverage?.value)), $('td', {}, neg(q.leverage?.ebitda_cushion_usd)),
+    $('td', {}, usd(q.ttm_available_cashflow_usd)), $('td', {}, usd(q.ttm_debt_service_usd)), $('td', {}, x(q.dscr?.value)),
+    $('td', {}, neg(q.dscr?.cashflow_cushion_usd)), $('td', {}, badge(q.status)), $('td', {class: 'meta'}, 'row ' + q.source_row)));
+  const memoOut = $('div'); const btn = $('button', {onclick: () => draft(b.borrower_id, btn, memoOut)}, 'Draft credit memo');
+  document.getElementById('detail').replaceChildren(
+    $('div', {class: 'detail-head'}, $('h2', {}, b.borrower_id), badge(b.status), $('span', {class: 'meta'}, `${b.current_period} reported · gross debt ${usd(c.debt_usd)}`)),
+    $('p', {class: 'hint'}, `Leverage ${x(c.leverage.value)} vs ${c.leverage.limit}x max — EBITDA can fall to ${usd(c.leverage.min_compliant_ebitda_usd)} before breach (cushion ${usd(c.leverage.ebitda_cushion_usd)}). ` +
+      `DSCR ${x(c.dscr.value)} vs ${c.dscr.limit}x min — needs ${usd(c.dscr.min_compliant_cashflow_usd)} of cash flow (cushion ${usd(c.dscr.cashflow_cushion_usd)}).`),
+    $('div', {class: 'charts'},
+      lineChart({title: 'Leverage (gross debt / TTM EBITDA)', cap: `First breach: ${b.first_breach.leverage || 'none'} · dashed = projected`, quarters: b.quarters, key: 'leverage', limit: Number(c.leverage.limit), test: 'max'}),
+      lineChart({title: 'DSCR (TTM cash flow / TTM debt service)', cap: `First breach: ${b.first_breach.dscr || 'none'} · dashed = projected`, quarters: b.quarters, key: 'dscr', limit: Number(c.dscr.limit), test: 'min'})),
+    $('div', {class: 'scroll'}, $('table', {class: 'calc'}, $('thead', {}, $('tr', {}, ...['Quarter', 'Gross debt', 'TTM EBITDA', 'Leverage', 'EBITDA cushion', 'TTM cash flow', 'Debt service', 'DSCR', 'CF cushion', 'Status', 'Source'].map(t => $('th', {}, t)))),
+      $('tbody', {}, calcRows))),
+    $('h3', {style: 'font-size:13px;margin:16px 0 4px'}, 'Agreement definitions (exact excerpts)'),
+    ...['leverage', 'dscr'].map(k => { const e = W.evidence[k]; return $('div', {class: 'evidence'}, $('q', {}, e.quote),
+      $('div', {class: 'meta'}, `${e.source} · chars ${e.start}–${e.end} · `, $('span', {class: 'ok'}, e.verified ? '✓ excerpt verified against source text' : '✕ not verified'))); }),
+    $('div', {style: 'margin-top:14px;display:flex;gap:12px;align-items:center'}, btn, $('span', {class: 'meta'}, 'Figures come from the engine; every number in the draft is checked against them.')),
+    memoOut);
+}
+
+async function draft(id, btn, out) {
+  btn.disabled = true; btn.textContent = 'Drafting…'; out.replaceChildren();
+  try {
+    const r = await fetch('api/memo', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({borrower_id: id})});
+    const m = await r.json(); if (!r.ok) throw Error(m.error || 'Memo failed');
+    const unv = m.verification.unverified;
+    const body = $('div', {class: 'memo'});
+    // highlight any unverified figure
+    let text = m.text; const parts = [];
+    if (unv.length) { const re = new RegExp('(' + unv.map(u => u.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|') + ')', 'g');
+      text.split(re).forEach(p => parts.push(unv.includes(p) ? $('mark', {class: 'unv', title: 'Not found in computed facts'}, p) : p)); }
+    else parts.push(text);
+    body.append(...parts);
+    out.replaceChildren(
+      $('div', {class: 'meta', style: 'margin-top:10px'}, m.mode === 'model' ? `Drafted by ${m.model} from computed facts. ` : 'Deterministic template (no model key configured). ',
+        unv.length ? $('b', {class: 'neg'}, `${unv.length} figure(s) not found in the facts — highlighted for review.`) : $('span', {class: 'ok'}, `✓ All ${m.verification.checked} figures trace to computed facts.`)),
+      body);
+  } catch (e) { out.replaceChildren($('p', {class: 'neg'}, e.message)); }
+  finally { btn.disabled = false; btn.textContent = 'Draft credit memo'; }
+}
+</script>
+</body>
+</html>
